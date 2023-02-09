@@ -16,7 +16,6 @@ class App(tk.Frame):
         super().__init__(master)
         self.images = []
         self.img_path = ""
-        self.img_paths = []
         self.pack()
         self.cbz_path = ""
 
@@ -57,26 +56,30 @@ class App(tk.Frame):
             if '.cbz' in file:
                 os.remove(self.cbz_path + f"\\{file}")
 
+    def collect_images(self, path):
+        for item in os.listdir(path):
+            itempath = os.path.join(path, item)
+            _, extn = os.path.splitext(item.lower())
+            if os.path.isdir(itempath):
+                yield from self.collect_images(itempath)
+            elif extn in (".jpg", ".jpeg", ".png"):
+                img = Image.open(itempath)
+                img.save(itempath, dpi=(96, 96))
+                print(f"{itempath} saved...")
+                yield img
+
     def zip_to_pdf(self, newPDFName, extractedPath):
         print(f"New name for file: {newPDFName} Path to extracted: {extractedPath}")
         print("Resetting list of images and image paths...")
-        self.img_paths.clear()
         print("Finding folder with images to compress into pdf...")
         for _ in os.listdir(extractedPath):
             # gets paths of where to find images
             self.img_path = self.find_images(extractedPath)
-            for file in os.listdir(self.img_path):
-                self.img_paths.append(self.img_path + f"\\{file}")
-        self.img_paths.sort()
-        self.images = [Image.open(img_path) for img_path in self.img_paths]
-        new_images = []
-        # converts mode for images to RGB in order to make them convertable to a PDF
-        for image in self.images:
-            if image.mode == 'RGBA':
-                image = image.convert('RGB')
-            new_images.append(image)
+        new_images = [*self.collect_images(self.img_path)]
         
+        print(f"Saving images to {newPDFName}...")
         new_images[0].save(newPDFName, "PDF", resolution=100.0, save_all=True, append_images=new_images[1:])
+
         # close the file pointers
         for image in self.images:
             image.close()
