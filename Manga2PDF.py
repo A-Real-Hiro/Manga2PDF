@@ -59,6 +59,8 @@ class App(tk.Frame):
 
     def zip_to_pdf(self, newPDFName, extractedPath):
         print(f"New name for file: {newPDFName} Path to extracted: {extractedPath}")
+        print("Resetting list of images and image paths...")
+        self.img_paths.clear()
         print("Finding folder with images to compress into pdf...")
         for _ in os.listdir(extractedPath):
             # gets paths of where to find images
@@ -66,10 +68,20 @@ class App(tk.Frame):
             for file in os.listdir(self.img_path):
                 self.img_paths.append(self.img_path + f"\\{file}")
         self.img_paths.sort()
-        self.images = [Image.open(self.img_path) for self.img_path in self.img_paths]
-        self.images[0].save(newPDFName, "PDF", resolution=100.0, save_all=True, append_images=self.images[1:])
-        self.img_paths = []
-        self.images = []
+        self.images = [Image.open(img_path) for img_path in self.img_paths]
+        new_images = []
+        # converts mode for images to RGB in order to make them convertable to a PDF
+        for image in self.images:
+            if image.mode == 'RGBA':
+                image = image.convert('RGB')
+            new_images.append(image)
+        
+        new_images[0].save(newPDFName, "PDF", resolution=100.0, save_all=True, append_images=new_images[1:])
+        # close the file pointers
+        for image in self.images:
+            image.close()
+        self.images.clear()
+        new_images.clear()
         
     
     def find_images(self,currentPath) -> str:
@@ -79,15 +91,13 @@ class App(tk.Frame):
                 return currentPath
             else:
                 return self.find_images(currentPath + f"\\{file}")
-        
-
-
+    
 
     def toPDF(self, files: list, pathForPDF):
-        for file in files:
+        sorted_files = sorted(files)
+        for file in sorted_files:
             self.toZip(file, pathForPDF)
         
-
 
     def convert(self):
         self.cbz_path = self.textEntryContent.get()
