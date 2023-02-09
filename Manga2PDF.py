@@ -14,6 +14,9 @@ from PIL import Image
 class App(tk.Frame):
     def __init__(self, master):
         super().__init__(master)
+        self.images = []
+        self.img_path = ""
+        self.img_paths = []
         self.pack()
         self.cbz_path = ""
 
@@ -43,7 +46,7 @@ class App(tk.Frame):
         zip_ref.extractall(path=new_dir)
         zip_ref.close()
         newPDF = pathForPDF + "\\" + inFile.replace('.cbz','.pdf')
-        self.zipToPDF(newPDF,new_dir)
+        self.zip_to_pdf(newPDF,new_dir)
 
     def clean_dir(self):
         # clears out the temp file
@@ -54,44 +57,29 @@ class App(tk.Frame):
             if '.cbz' in file:
                 os.remove(self.cbz_path + f"\\{file}")
 
-
-    def zipToPDF(self, newFileName, newPath):
-        print(f"New name: {newFileName} New Path: {newPath}")
-        img_paths = []
-        volume_just_images = False
-
-        # test if the file is just containing images already
-        if len(os.listdir(newPath)) > 1:
-            imgFileNames = [file for file in os.listdir(newPath) if '.jpg' or '.png' in file]
-            imgPath = newPath
-        # in case the volumes are organized by chapter
-        else: 
-            chapter_folder = os.listdir(newPath)[0]
-            chapters = os.listdir(newPath + f"\\{chapter_folder}")
-
-            for chapter in chapters:
-                if '.png' or '.jpg' in chapter:
-                    # the volume is just a bunch of images rather than folders for each chapter
-                    volume_just_images = True
-                        
-            img_paths = []
-            if volume_just_images:
-                imgFileNames = [file for file in chapters if '.jpg' or '.png' in file]
-                imgPath = newPath + f"\\{chapter_folder}"
-            else:
-                for folder in chapters:
-                    imgFileNames = [file for file in os.listdir(newPath + f"\\{chapter_folder}\\{folder}") if '.jpg' or '.png' in file]
-                    imgPath = newPath + f"\\{chapter_folder}\\{folder}"
+    def zip_to_pdf(self, newPDFName, extractedPath):
+        print(f"New name for file: {newPDFName} Path to extracted: {extractedPath}")
+        print("Finding folder with images to compress into pdf...")
+        for _ in os.listdir(extractedPath):
+            # gets paths of where to find images
+            self.img_path = self.find_images(extractedPath)
+            for file in os.listdir(self.img_path):
+                self.img_paths.append(self.img_path + f"\\{file}")
+        self.img_paths.sort()
+        self.images = [Image.open(self.img_path) for self.img_path in self.img_paths]
+        self.images[0].save(newPDFName, "PDF", resolution=100.0, save_all=True, append_images=self.images[1:])
+        self.img_paths = []
+        self.images = []
         
-        for file in imgFileNames:
-            img_paths.append(imgPath + f"\\{file}")
-            # sorts the images into order
-            img_paths.sort()
-            # opens the images in a list
-            images = []
-            images = [Image.open(img_path) for img_path in img_paths]
-            # saves the images as a PDF named after the volume
-            images[0].save(newFileName, "PDF", resolution=100.0, save_all=True, append_images=images[1:])
+    
+    def find_images(self,currentPath) -> str:
+        currentFiles = os.listdir(currentPath)
+        for file in currentFiles:
+            if '.png' in file or '.jpg' in file:
+                return currentPath
+            else:
+                return self.find_images(currentPath + f"\\{file}")
+        
 
 
 
